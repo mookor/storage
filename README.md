@@ -1,11 +1,11 @@
-# BoxDetector
+## BoxDetector
 Класс для удобной работы с априлтегами
 
-#Calibration_and_shift
+## Calibration_and_shift
 Включает в себя утилиту для калибровки камеры + готовое решение с оптимизатором значений для интерактивных очков
 
-#Diplom
+## Diplom
 Дипломная работа
 
-#Voice_recognition
+## Voice_recognition
 Утилита для работы с голосовыми командами
