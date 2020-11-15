@@ -1,0 +1,8 @@
+Class_number: 1 start time is 3.096 - 6.456
+Class_number: 3 start time is 14.2
+Class_number: 4 start time is 19.672
+Class_number: 5 start time is 25.048
+Class_number: 7 start time is 37.592
+Class_number: 8 start time is 43.224
+Class_number: 8 start time is 43.224 - 53.016
+Могла быть упущенная метка :  - 53.016
