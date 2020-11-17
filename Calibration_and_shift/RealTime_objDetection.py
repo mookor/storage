@@ -21,7 +21,7 @@ config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 60)
 profile = pipeline.start(config)
 detector = apriltag.Detector()
 M_int = np.load(cfg.M_int_path)
-vs = cv2.VideoCapture(6)
+vs = cv2.VideoCapture(-1)
 camera_params = [M_int[0][0], M_int[1][1], M_int[0][-1], M_int[1][-1]]
 Rt_cam2eye = None
 
@@ -76,7 +76,7 @@ def read_data(camera_params):
             )
 
             Points = Points[0].split(" ")
-
+            print(coord_file)
             Points = [float(Points[0]), float(Points[1]), float(Points[2]), 1.0]
             XYZ[filename] = Points
     for coord_file in Coordinates_path:
@@ -249,64 +249,159 @@ while True:
     if key == ord("l"):
         Rt_cam2eye = np.load(cfg.MRt_cam2eye)
         print("success load")
+
     """Calculate data"""
     if key == ord("c"):
         data = read_data(camera_params)
         Rt_cam2eye = optimizer(data, camera_params)
+
     if Rt_cam2eye is not None:
-        for i in np.arange(0, detections.shape[2]):
-            # extract the confidence (i.e., the probability) associated with the prediction
-            confidence = detections[0, 0, i, 2]
+        try:
 
-            # filter out weak detections by ensuring the 'confidence' is greater than the minimum confidence
-            if confidence > args["confidence"]:
-                # extract the index of the classes label from the 'detections',
-                # then compute the (x, y)-coordinates of the bounding box for the object
+            for i in np.arange(0, detections.shape[2]):
+                # extract the confidence (i.e., the probability) associated with the prediction
+                confidence = detections[0, 0, i, 2]
                 idx = int(detections[0, 0, i, 1])
-                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                (startX, startY, endX, endY) = box.astype("int")
+                # filter out weak detections by ensuring the 'confidence' is greater than the minimum confidence
+                if confidence > args["confidence"] and idx ==15:
+                    # extract the index of the classes label from the 'detections',
+                    # then compute the (x, y)-coordinates of the bounding box for the object
+                    
+                    box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                    (startX, startY, endX, endY) = box.astype("int")
 
-                # display the prediction
-                label = "{}: {:.2f}%".format(CLASSES[idx], confidence * 100)
+                    # display the prediction
+                    label = "{}: {:.2f}%".format(CLASSES[idx], confidence * 100)
 
-                cv2.rectangle(rs_frame, (startX, startY), (endX, endY), COLORS[idx], 2)
-                y = startY - 15 if startY - 15 > 15 else startY + 15
-                cv2.putText(
-                    rs_frame,
-                    label,
-                    (startX, y),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    COLORS[idx],
-                    2,
-                )
+                    cv2.rectangle(
+                        rs_frame, (startX, startY), (endX, endY), COLORS[idx], 2
+                    )
+                    y = startY - 15 if startY - 15 > 15 else startY + 15
+                    cv2.putText(
+                        rs_frame,
+                        label,
+                        (startX, y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        COLORS[idx],
+                        2,
+                    )
 
-                center = int(startX + (endX - startX) / 2), int(
-                    startY + (endY - startY) / 2
-                )
-                depth_point = rs.rs2_project_color_pixel_to_depth_pixel(
-                    depth_frame.get_data(),
-                    depth_scale,
-                    0,
-                    5.0,
-                    depth_intrin,
-                    color_intrin,
-                    depth_to_color_extrin,
-                    color_to_depth_extrin,
-                    [center[0], center[1]],
-                )
-                newX1, newY1 = coordinate_shift(
-                    [startX, startY], depth_point, Rt_cam2eye
-                )
-                newX2, newY2 = coordinate_shift([endX, endY], depth_point, Rt_cam2eye)
-                cv2.rectangle(
-                    cam_frame,
-                    (int(newX1), int(newY1)),
-                    (int(newX2), int(newY2)),
-                    COLORS[idx],
-                    2,
-                )
+                    center = int(startX + (endX - startX) / 2), int(
+                        startY + (endY - startY) / 2
+                    )
+                    depth_point = rs.rs2_project_color_pixel_to_depth_pixel(
+                        depth_frame.get_data(),
+                        depth_scale,
+                        0,
+                        5.0,
+                        depth_intrin,
+                        color_intrin,
+                        depth_to_color_extrin,
+                        color_to_depth_extrin,
+                        [center[0], center[1]],
+                    )
+                    newX1, newY1 = coordinate_shift(
+                        [startX, startY], depth_point, Rt_cam2eye
+                    )
+                    newX2, newY2 = coordinate_shift(
+                        [endX, endY], depth_point, Rt_cam2eye
+                    )
+                    cv2.rectangle(
+                        cam_frame,
+                        (int(newX1), int(newY1)),
+                        (int(newX2), int(newY2)),
+                        COLORS[idx],
+                        2,
+                    )
+                    if len(result) != 0:
+                        for detect in result:
+                            for i in range(4):
+                                x1 = detect.corners[i][0]
+                                y1 = detect.corners[i][1]
+                                depth_point = rs.rs2_project_color_pixel_to_depth_pixel(
+                                    depth_frame.get_data(),
+                                    depth_scale,
+                                    0,
+                                    5.0,
+                                    depth_intrin,
+                                    color_intrin,
+                                    depth_to_color_extrin,
+                                    color_to_depth_extrin,
+                                    [x1, y1],
+                                )
+                                x1, y1 = coordinate_shift(
+                                    [x1, y1], depth_point, Rt_cam2eye
+                                )
+                                if i != 3:
+                                    x2 = detect.corners[i + 1][0]
+                                    y2 = detect.corners[i + 1][1]
+                                    depth_point = (
+                                        rs.rs2_project_color_pixel_to_depth_pixel(
+                                            depth_frame.get_data(),
+                                            depth_scale,
+                                            0,
+                                            5.0,
+                                            depth_intrin,
+                                            color_intrin,
+                                            depth_to_color_extrin,
+                                            color_to_depth_extrin,
+                                            [x2, y2],
+                                        )
+                                    )
+                                    x2, y2 = coordinate_shift(
+                                        [x2, y2], depth_point, Rt_cam2eye
+                                    )
+                                else:
+                                    x2 = detect.corners[0][0]
+                                    y2 = detect.corners[0][1]
+                                    depth_point = (
+                                        rs.rs2_project_color_pixel_to_depth_pixel(
+                                            depth_frame.get_data(),
+                                            depth_scale,
+                                            0,
+                                            5.0,
+                                            depth_intrin,
+                                            color_intrin,
+                                            depth_to_color_extrin,
+                                            color_to_depth_extrin,
+                                            [x2, y2],
+                                        )
+                                    )
+                                    x2, y2 = coordinate_shift(
+                                        [x2, y2], depth_point, Rt_cam2eye
+                                    )
+                                x1 = x1.astype(int)
+                                x2 = x2.astype(int)
+                                y1 = y1.astype(int)
+                                y2 = y2.astype(int)
+                                cv2.line(cam_frame, (x1, y1), (x2, y2), (255, 0, 0), 3)
 
+                            x = detect.center[0].astype(int)
+                            y = detect.center[1].astype(int)
+                            depth_point = rs.rs2_project_color_pixel_to_depth_pixel(
+                                depth_frame.get_data(),
+                                depth_scale,
+                                0,
+                                5.0,
+                                depth_intrin,
+                                color_intrin,
+                                depth_to_color_extrin,
+                                color_to_depth_extrin,
+                                [x, y],
+                            )
+                            cv2.rectangle(
+                                rs_frame, (x, y), (x + 3, y + 3), (255, 0, 0), 3
+                            )
+                            x, y = coordinate_shift([x, y], depth_point, Rt_cam2eye)
+                            x = x.astype(int)
+                            y = y.astype(int)
+                            cv2.rectangle(
+                                cam_frame, (x, y), (x + 3, y + 3), (25, 255, 0), 3
+                            )
+        except Exception as e:
+            print(e)
+            pass
     both_frames = np.hstack((rs_frame, cam_frame))
     cv2.imshow("window", both_frames)
     if key == ord("q"):
