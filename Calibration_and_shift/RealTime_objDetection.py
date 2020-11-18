@@ -121,7 +121,7 @@ def optimizer(data, camera_params):
         args=(y_true, xyz_orig),
         ftol=1e-8,
         gtol=1e-8,
-        maxfev=100000,
+        maxfev=1000000,
     )
 
     fx, fy, cx, cy = x[:4]
@@ -152,32 +152,25 @@ def coordinate_shift(coordinates, depth_point, Rt_cam2eye):
     return pixel
 
 
-def show(rs_frame, cam_frame, coordinates, newX, newY):
-    cv2.rectangle(
-        rs_frame,
-        (int(coordinates[0]), int(coordinates[1])),
-        (int(coordinates[0]) + 3, int(coordinates[1]) + 3),
-        (255, 30, 0),
-        4,
-    )
-    cv2.rectangle(
-        cam_frame,
-        (int(newX), int(newY)),
-        (int(newX) + 3, int(newY) + 3),
-        (255, 30, 0),
-        4,
-    )
-
-
 ap = argparse.ArgumentParser()
-# ap.add_argument('-p', '--prototxt', default='/Users/siddhantbansal/Desktop/Python/Personal_Projects/Object_Detection/MobileNetSSD_deploy.prototxt.txt', help='path to Caffe deploy prototxt file')
-# ap.add_argument('-m', '--model', default='/Users/siddhantbansal/Desktop/Python/Personal_Projects/Object_Detection/MobileNetSSD_deploy.caffemodel', help='path to the Caffe pre-trained model')
 ap.add_argument(
+    "-p",
+    "--prototxt",
+    default="/home/andrey/anaconda3/envs/graph/Graph/NormaP-Research/CamCalibrate/MobileNetSSD_deploy.prototxt.txt",
+    help="path to Caffe deploy prototxt file",
+)
+ap.add_argument(
+    "-m",
+    "--model",
+    default="/home/andrey/anaconda3/envs/graph/Graph/NormaP-Research/CamCalibrate/MobileNetSSD_deploy.caffemodel",
+    help="path to the Caffe pre-trained model",
+)
+"""ap.add_argument(
     "-p", "--prototxt", required=True, help="path to Caffe deploy prototxt file"
 )
 ap.add_argument(
     "-m", "--model", required=True, help="path to the Caffe pre-trained model"
-)
+)"""
 ap.add_argument(
     "-c",
     "--confidence",
@@ -225,6 +218,7 @@ while True:
     gray_rs_frame = cv2.cvtColor(rs_frame, cv2.COLOR_BGR2GRAY)
     result = detector.detect(gray_rs_frame)
     depth_scale = profile.get_device().first_depth_sensor().get_depth_scale()
+
     # Intrinsics & Extrinsics
     depth_intrin = depth_frame.profile.as_video_stream_profile().intrinsics
     color_intrin = color_frame.profile.as_video_stream_profile().intrinsics
@@ -240,7 +234,7 @@ while True:
     )
 
     # pass the blob through the neural network
-    if cc == 20:
+    if cc == 3:
         net.setInput(blob)
         detections = net.forward()
         cc = 0
@@ -263,10 +257,10 @@ while True:
                 confidence = detections[0, 0, i, 2]
                 idx = int(detections[0, 0, i, 1])
                 # filter out weak detections by ensuring the 'confidence' is greater than the minimum confidence
-                if confidence > args["confidence"] and idx ==15:
+                if confidence > args["confidence"] and idx == 15:
                     # extract the index of the classes label from the 'detections',
                     # then compute the (x, y)-coordinates of the bounding box for the object
-                    
+
                     box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                     (startX, startY, endX, endY) = box.astype("int")
 
